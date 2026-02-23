@@ -1,0 +1,16 @@
+{
+  "name": "narai",
+  "description": "Narai Labs plugins for Claude Code — AI-powered development tools",
+  "owner": {
+    "name": "Narai Labs",
+    "url": "https://github.com/narailabs"
+  },
+  "plugins": [
+    {
+      "name": "browser-qa",
+      "source": ".",
+      "description": "AI-powered QA agent that uses Chrome browser tools to browse web apps, discover screens, test interactivity, find bugs, and auto-fix them. Supports workflow testing and targeted bug fix cycles.",
+      "version": "1.0.0"
+    }
+  ]
+}

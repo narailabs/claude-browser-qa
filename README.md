@@ -18,26 +18,49 @@ No project-specific configuration needed — it works on any web app.
 ## Prerequisites
 
 1. [Claude Code](https://docs.anthropic.com/en/docs/claude-code) installed
-2. [Claude in Chrome](https://chromewebstore.google.com/detail/claude-in-chrome/) extension connected
+2. [Claude in Chrome](https://chromewebstore.google.com/detail/claude/fcoeoabgfenejglbffodgkkbkcdhcgfn) extension installed and connected
 3. Your web app running locally (e.g., `npm run dev`)
+
+> **Note:** The skill will check for the Chrome extension at startup. If it's not connected, it will show setup instructions and stop — it won't proceed without it.
 
 ## Install
 
-Copy the skill into your project:
+### Option 1: From the Narai Marketplace (recommended)
+
+Add the Narai marketplace to Claude Code, then install the plugin:
+
+```
+/plugin marketplace add narailabs/claude-browser-qa
+/plugin install browser-qa@narai
+```
+
+This installs the plugin with automatic updates when new versions are released.
+
+### Option 2: Install plugin directly from GitHub
+
+```
+/plugin install narailabs/claude-browser-qa
+```
+
+### Option 3: Manual install (copy into your project)
+
+Copy the skill file into your project's `.claude/skills/` directory:
 
 ```bash
 # From your project root
 mkdir -p .claude/skills/browser-qa
 curl -o .claude/skills/browser-qa/SKILL.md \
-  https://raw.githubusercontent.com/narailabs/claude-browser-qa/main/.claude/skills/browser-qa/SKILL.md
+  https://raw.githubusercontent.com/narailabs/claude-browser-qa/main/skills/browser-qa/SKILL.md
 ```
 
 Or clone and copy:
 
 ```bash
 git clone https://github.com/narailabs/claude-browser-qa.git /tmp/browser-qa
-cp -r /tmp/browser-qa/.claude/skills/browser-qa .claude/skills/
+cp -r /tmp/browser-qa/skills/browser-qa .claude/skills/
 ```
+
+> **Manual install note:** With this method you won't get automatic updates. Re-run the curl/copy command to update.
 
 ## Usage
 
