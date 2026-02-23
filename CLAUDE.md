@@ -11,8 +11,7 @@ claude-browser-qa/
 ├── CLAUDE.md                    # This file
 ├── README.md                    # Installation and usage guide
 ├── .claude-plugin/
-│   ├── plugin.json              # Plugin manifest (name, version, author)
-│   └── marketplace.json         # Narai marketplace listing
+│   └── plugin.json              # Plugin manifest (name, version, author)
 ├── skills/
 │   └── browser-qa/
 │       └── SKILL.md             # The complete skill definition (plugin copy)
@@ -30,7 +29,7 @@ claude-browser-qa/
 This repo is structured as a **Claude Code plugin** distributed via the **Narai marketplace**.
 
 - **Plugin**: Defined by `.claude-plugin/plugin.json`. The skill lives in `skills/browser-qa/SKILL.md`.
-- **Marketplace**: Defined by `.claude-plugin/marketplace.json`. Users add the marketplace with `/plugin marketplace add narailabs/claude-browser-qa` and install with `/plugin install browser-qa@narai`.
+- **Marketplace**: Listed in the separate [narailabs/narai-plugins](https://github.com/narailabs/narai-plugins) marketplace repo. Users add it with `/plugin marketplace add narailabs/narai-plugins` and install with `/plugin install browser-qa@narai`.
 - **Manual install**: Users can also copy `skills/browser-qa/SKILL.md` into their project's `.claude/skills/browser-qa/` directory.
 - **Local dev**: The `.claude/skills/` copy lets you test the skill locally in this repo. Keep it in sync with `skills/browser-qa/SKILL.md`.
 
