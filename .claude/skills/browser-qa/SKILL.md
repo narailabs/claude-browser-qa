@@ -1,8 +1,8 @@
 ---
-name: e2e-test
-description: Use when testing a web app end-to-end via Chrome browser. Navigates all screens, discovers interactive elements, verifies functionality, checks console errors and network failures, finds bugs, and automatically launches fix agents inline. Requires Claude in Chrome extension connected.
+name: browser-qa
+description: Use when testing a web app end-to-end via Chrome browser. Navigates all screens, discovers interactive elements, verifies functionality, checks console errors and network failures, finds bugs, and automatically launches fix agents inline. Also supports targeted workflow testing and bug fix cycles. Requires Claude in Chrome extension connected.
 disable-model-invocation: true
-argument-hint: "[url] [--mode smoke|functional|full] [--record] [--no-autofix] [--a11y] [--perf] [--responsive] [--skip-auth]"
+argument-hint: "[url] [--mode smoke|functional|full] [--record] [--no-autofix] [--a11y] [--perf] [--responsive] [--skip-auth] [--workflow \"...\"] [--fix \"...\"]"
 ---
 
 # Intelligent E2E Testing
@@ -21,8 +21,22 @@ Parse the arguments:
 - `--perf` = run performance awareness checks on every screen (included automatically in `full` mode)
 - `--responsive` = test layouts at mobile, tablet, and desktop breakpoints (included automatically in `full` mode)
 - `--skip-auth` = skip login even if auth wall is detected; test only public pages
+- `--workflow "description"` = test a specific user journey end-to-end. Describe the steps in natural language. Skips broad discovery — only tests the described flow. Implies `--mode functional`.
+- `--fix "description"` = reproduce a known bug, fix it, and validate the fix. Describe the bug or paste an error message. Runs a structured reproduce → fix → verify cycle.
+
+`--workflow` and `--fix` are mutually exclusive. If both are provided, ask the user which they intended.
 
 If no URL is provided, ask the user.
+
+**Example invocations:**
+```
+/browser-qa http://localhost:3000
+/browser-qa http://localhost:3000 --mode full
+/browser-qa http://localhost:3000 --workflow "register a new user with email and password, then verify the dashboard loads"
+/browser-qa http://localhost:3000 --workflow "add item to cart, go to checkout, fill shipping form, submit order"
+/browser-qa http://localhost:3000 --fix "clicking save on the settings page throws a TypeError in the console"
+/browser-qa http://localhost:3000 --fix "submitting the contact form returns a 500 error"
+```
 
 ## Prerequisites
 
@@ -155,6 +169,312 @@ Before touching the browser, understand the project so fix agents have proper co
    | Console baseline | Console persists across navigations — only clear at start of each screen test | Console resets on each page load — read immediately after load |
    | Network baseline | Network log accumulates — note which requests are new since navigation | Network log resets per page — all requests are relevant |
    | Back/forward testing | `Claude_in_Chrome:navigate("javascript:history.back()")` or browser back — verify SPA handles popstate | Standard back navigation |
+
+## Execution Mode Routing
+
+After Phase 1 setup completes, determine the execution path:
+
+- **If `--workflow` is set**: Go to **Phase W: Workflow Testing**. Skip Phase 2 (Discover) and Phase 3 (Test Each Screen).
+- **If `--fix` is set**: Go to **Phase F: Bug Fix Cycle**. Skip Phase 2 (Discover) and Phase 3 (Test Each Screen).
+- **Otherwise**: Continue with Phase 2 → Phase 3 as normal (broad sweep testing).
+
+**Flag interactions with targeted modes:**
+- `--workflow` and `--fix` both imply `--mode functional` (interactions are inherent)
+- `--a11y`: Runs accessibility checks only on screens visited during the workflow/fix (not all screens)
+- `--perf`: Checks performance of requests made during the workflow/fix
+- `--responsive`: Re-runs the workflow at each breakpoint after desktop succeeds, or verifies the fix works at all breakpoints
+- `--no-autofix` + `--workflow`: Valid — test the workflow but only report bugs, don't fix them
+- `--no-autofix` + `--fix`: Contradictory — the purpose of `--fix` is to fix. If both provided, ask the user to clarify
+- `--focus`: Ignored when `--workflow` or `--fix` is set (they already define scope)
+
+---
+
+## Phase W: Workflow Testing (--workflow)
+
+Test a specific user journey end-to-end. The user describes the workflow in natural language, and you execute it step by step, fixing bugs encountered along the way.
+
+### W.1: Parse the Workflow Description
+
+Analyze the `--workflow` text to extract:
+- **Starting point**: Which URL, route, or screen does the workflow begin at?
+- **Action steps**: Ordered list of user actions (navigate, click, type, submit, select, scroll, verify)
+- **Expected outcomes**: What should happen after each step? (page changes, content appears, redirect occurs)
+- **Success criteria**: What does "workflow complete" look like? (final state, confirmation message, redirect to specific page)
+
+If the description is too vague to derive concrete steps:
+```
+AskUserQuestion: "I need more detail to test this workflow. Can you describe the specific steps?"
+Options: "Let me describe the steps", "Just navigate to the starting page and explore"
+```
+
+Build a TodoWrite checklist of the extracted steps:
+```
+- [ ] Step 1: Navigate to /register
+- [ ] Step 2: Fill in registration form (name, email, password)
+- [ ] Step 3: Click "Create Account"
+- [ ] Step 4: Verify redirect to /dashboard
+- [ ] Step 5: Verify welcome message is displayed
+```
+
+### W.2: Codebase-Informed Step Planning
+
+Use the Phase 0 codebase context to correlate workflow steps with actual code:
+- Which routes/components are involved in this workflow?
+- Which API endpoints will be hit during form submissions or navigation?
+- Are there relevant form validation rules, state management patterns, or middleware?
+- What error handling exists along this path?
+
+This helps anticipate where bugs are likely and gives better context to fix agents if issues are found.
+
+### W.3: Execute the Workflow
+
+Follow the **Interaction Stability: Wait-for-Ready Protocol** for every interaction.
+
+For each step in the workflow:
+
+1. **Perform the action**:
+   - Navigation: `Claude_in_Chrome:navigate` or click a link/button
+   - Form input: `Claude_in_Chrome:find` the field → `Claude_in_Chrome:computer(action=click)` → `Claude_in_Chrome:computer(action=type, text="...")`
+   - Button click: `Claude_in_Chrome:find` the button → `Claude_in_Chrome:computer(action=click)`
+   - Verification: `Claude_in_Chrome:read_page` to check content
+
+2. **Capture evidence**:
+   - `Claude_in_Chrome:computer(action=screenshot)` — screenshot after each step
+   - `Claude_in_Chrome:read_console_messages` — check for errors
+   - `Claude_in_Chrome:read_network_requests` — check for failures
+
+3. **Verify the expected outcome**:
+   - Did the page change as expected?
+   - Is the expected content visible?
+   - Are there any console errors or network failures?
+
+4. **Handle results**:
+   - **Step succeeds** → mark TodoWrite item complete, proceed to next step
+   - **Step fails** → record the failure point with full evidence (screenshot, console, network), then go to W.4
+
+### W.4: Fix Bugs Found in Workflow
+
+When a step fails, use the same fix process as Phase 3.5 (spawn a fix agent with evidence and codebase context).
+
+**Key difference from broad testing**: After each fix, **re-run the ENTIRE workflow from step 1** — not just the failed step. This catches regressions where a fix to step 3 might break step 1.
+
+- Maximum **3 full re-runs** of the workflow to prevent infinite loops
+- If the same step fails after a fix attempt, mark as unresolved and report
+- If a previously-passing step fails after a fix (regression), spawn a fix agent for the regression too
+- Track re-run count: "Workflow run 2/3 (after fixing step 3)"
+
+### W.5: Workflow Report
+
+```
+Workflow Test: "[workflow description]"
+═══════════════════════════════════
+Steps: 5/5 passed ✅
+
+Step 1: Navigate to /register ✅
+Step 2: Fill in name, email, password ✅
+Step 3: Click "Create Account" ✅
+  → Bug found: 500 error on POST /api/register
+  → Fix applied: Fixed null check in register handler (src/api/auth.ts:42)
+  → Re-run 2/3: All steps pass ✅
+Step 4: Verify redirect to /dashboard ✅
+Step 5: Verify welcome message shown ✅
+
+Bugs found: 1
+  ✅ Fixed: POST /api/register 500 error (src/api/auth.ts:42)
+
+Workflow re-runs: 2 (1 fix applied)
+Workflow status: PASSING
+```
+
+If the workflow still fails after all fix attempts:
+```
+Workflow status: FAILING at step 3
+  ❌ Step 3 "Click Create Account" → POST /api/register returns 500
+  Fix attempted but did not resolve the issue.
+  See bug report above for details.
+```
+
+---
+
+## Phase F: Bug Fix Cycle (--fix)
+
+Reproduce a known bug, fix it, and validate the fix. This is a structured reproduce → evidence → fix → validate → regression check cycle.
+
+### F.1: Understand the Bug
+
+Parse the `--fix` description to extract:
+- **What's broken**: Error message, wrong behavior, visual glitch, crash
+- **Where it happens**: Which screen, route, page, or element
+- **How to trigger it**: User actions that cause the bug (if described)
+
+If reproduction steps are not clear from the description:
+```
+AskUserQuestion: "Can you describe the exact steps to reproduce this bug?"
+Options: "Let me describe the steps", "Just go to the page and look for the error"
+```
+
+**Search the codebase** for related code (using Phase 0 context):
+- `Grep` for error message text, component names, route handlers, API endpoints mentioned in the bug description
+- Identify the likely source files involved
+- Build a focused codebase context block for the fix agent (more targeted than the general Phase 0 block)
+
+### F.2: Reproduce the Bug
+
+Navigate to the affected area and attempt to trigger the bug:
+
+1. `Claude_in_Chrome:navigate` to the relevant route
+2. Follow the reproduction steps (click, type, submit, etc.)
+3. After each action:
+   - `Claude_in_Chrome:computer(action=screenshot)` — capture state
+   - `Claude_in_Chrome:read_console_messages` — check for the reported error
+   - `Claude_in_Chrome:read_network_requests` — check for failures
+4. **Goal**: Confirm the bug exists by capturing concrete evidence that matches the description
+
+**If the bug does NOT reproduce**:
+- Try alternative reproduction paths (different test data, different app state, different navigation order)
+- Check console for errors that might be related but have a different message
+- Ask the user:
+  ```
+  AskUserQuestion: "I wasn't able to reproduce this bug. Can you provide more specific steps?"
+  Options: "Let me provide more detail", "Try again with different data", "The bug might be intermittent — skip reproduction"
+  ```
+- If still can't reproduce after 2 attempts → report as "not reproducible" and stop
+
+### F.3: Gather Evidence
+
+Once the bug is reproduced, collect all evidence into a structured package:
+- **Screenshots**: Before, during, and after the bug manifests
+- **Console errors**: Exact error text, stack trace if available
+- **Network failures**: URL, HTTP method, status code, response body excerpt if available
+- **DOM state**: Relevant element attributes, missing elements, unexpected content
+- **Reproduction steps**: Precise, numbered, as performed in F.2
+
+### F.4: Fix the Bug
+
+Spawn a fix agent (same as Phase 3.5) with:
+- The full evidence package from F.3
+- The focused codebase context from F.1 (specific file paths and relevant code)
+- Clear success criteria: "After the fix, performing these reproduction steps should complete without the error/issue"
+
+```
+Task(
+  subagent_type: "general-purpose",
+  description: "Fix [brief bug description]",
+  prompt: """
+    Fix this bug reported by a user:
+
+    BUG: [description from --fix]
+    REPRODUCED: Yes — confirmed in browser
+
+    EVIDENCE:
+    - Console error: [exact text]
+    - Network failure: [URL + status, or 'none']
+    - Visual issue: [describe what's wrong]
+    - Reproduction steps:
+      1. [step]
+      2. [step]
+      3. [observe bug]
+
+    LIKELY SOURCE FILES:
+    - [files identified in F.1]
+
+    [Paste CODEBASE CONTEXT from Phase 0]
+
+    INSTRUCTIONS:
+    1. Read the project's CLAUDE.md for conventions
+    2. Read the likely source files above
+    3. Find and fix the root cause
+    4. Run typecheck/lint to verify no new errors
+    5. Do NOT run the dev server or browser
+    6. Report: root cause, fix applied, files changed
+  """
+)
+```
+
+### F.5: Validate the Fix
+
+After the fix agent completes:
+1. **Reload the page**: `Claude_in_Chrome:navigate` to the affected route
+2. **Re-run exact reproduction steps** from F.2
+3. **Check for the specific error**: Is the console error gone? Does the network request succeed? Does the UI behave correctly now?
+4. **Screenshot**: Capture the fixed state as proof
+
+**If fix works**: Proceed to F.6 (regression check)
+
+**If fix fails**:
+- Provide the fix agent's changes + the still-failing evidence to a second fix agent with additional context
+- Maximum **2 fix attempts** total
+- If still failing after 2 attempts → report as "fix attempted, still broken" with details of what was tried
+
+### F.6: Regression Check
+
+Run a quick smoke test on the affected screen to ensure the fix didn't break anything:
+- **DOM verification**: `Claude_in_Chrome:read_page` — page still renders correctly
+- **Console errors**: `Claude_in_Chrome:read_console_messages` — no new errors introduced
+- **Network failures**: `Claude_in_Chrome:read_network_requests` — no new failures
+- **Visual screenshot**: `Claude_in_Chrome:computer(action=screenshot)` — page looks correct
+
+If Phase 0 identified other screens that share code with the fixed area (same component, same API endpoint), navigate to those screens and run a quick smoke check too.
+
+Report any new issues introduced by the fix as regressions.
+
+### F.7: Fix Report
+
+```
+Bug Fix: "[bug description from --fix]"
+═══════════════════════════════════
+Status: ✅ FIXED
+
+Reproduction:
+  1. Navigate to /settings
+  2. Change the "Theme" dropdown to "Dark"
+  3. Click "Save"
+  → TypeError: Cannot read properties of undefined (reading 'theme')
+
+Root cause: Settings update handler accessed `user.preferences.theme`
+but `user.preferences` was null for users who never set preferences.
+
+Fix applied:
+  File: src/api/settings.ts:47
+  Change: Added null coalescing — `user.preferences?.theme ?? 'light'`
+
+Validation:
+  ✅ Reproduction steps now complete without error
+  ✅ Settings save successfully
+  ✅ Smoke test on /settings — no regressions
+
+Files changed:
+  - src/api/settings.ts (line 47)
+```
+
+If the fix failed:
+```
+Status: ❌ FIX ATTEMPTED, STILL BROKEN
+
+Reproduction: [confirmed — bug reproduces]
+Fix attempts: 2
+  Attempt 1: [what was tried, why it didn't work]
+  Attempt 2: [what was tried, why it didn't work]
+
+Recommendation: [suggestion for manual investigation]
+```
+
+If the bug was not reproducible:
+```
+Status: ⚠️ NOT REPRODUCIBLE
+
+Attempted reproduction:
+  1. [steps tried]
+  2. [steps tried]
+  Result: Bug did not manifest. Page behaved as expected.
+
+Possible explanations:
+  - Bug may be intermittent or timing-dependent
+  - Bug may require specific data/state not present in current environment
+  - Bug may have been fixed by a recent change
+```
+
+---
 
 ## Phase 2: Discover
 
@@ -691,5 +1011,9 @@ When any element interaction (click, type, submit) fails, follow this escalation
 **functional**: smoke + interact with all safe elements, fill forms, click buttons, verify state changes. Auto-fix bugs found. Interaction stability protocol active.
 
 **full**: functional + edge cases (empty inputs, special characters, rapid navigation, back/forward, data persistence across views) + accessibility checks (Layer 6) + performance awareness (Layer 7) + responsive viewport testing (Phase 3.7). Auto-fix bugs found.
+
+**workflow**: Test a specific user journey. `--workflow "description"`. Skips broad discovery. Parses the description into steps, executes them sequentially, fixes bugs encountered, re-runs entire workflow from step 1 after each fix to catch regressions. Report shows step-by-step pass/fail status.
+
+**fix**: Reproduce and fix a known bug. `--fix "description"`. Skips broad discovery. Structured cycle: understand → reproduce → gather evidence → fix → validate → regression check. Up to 2 fix attempts. Report shows fix status, root cause, and validation results.
 
 Individual layers can also be enabled independently via flags: `--a11y`, `--perf`, `--responsive`.
