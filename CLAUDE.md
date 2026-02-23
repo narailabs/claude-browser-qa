@@ -2,7 +2,7 @@
 
 ## Overview
 
-This repo contains a Claude Code skill: `/e2e-test` — an AI-powered QA agent that uses Chrome MCP browser tools to intelligently browse web applications, discover all screens and interactive elements, test them systematically, and automatically fix bugs it finds.
+This repo contains a Claude Code skill: `/browser-qa` — an AI-powered QA agent that uses Chrome MCP browser tools to intelligently browse web applications, discover all screens and interactive elements, test them systematically, and automatically fix bugs it finds. Also supports targeted workflow testing (`--workflow`) and bug fix cycles (`--fix`).
 
 ## Repo Structure
 
@@ -12,13 +12,13 @@ claude-browser-qa/
 ├── README.md                    # Installation and usage guide
 └── .claude/
     └── skills/
-        └── e2e-test/
+        └── browser-qa/
             └── SKILL.md         # The complete skill definition
 ```
 
 ## How Skills Work
 
-Claude Code skills are prompt documents stored at `.claude/skills/<name>/SKILL.md`. They are invoked via `/skill-name [args]` in Claude Code. This skill requires the **Claude in Chrome** extension to be connected.
+Claude Code skills are prompt documents stored at `.claude/skills/<name>/SKILL.md`. They are invoked via `/skill-name [args]` in Claude Code (e.g., `/browser-qa http://localhost:3000`). This skill requires the **Claude in Chrome** extension to be connected.
 
 ## No Code
 
