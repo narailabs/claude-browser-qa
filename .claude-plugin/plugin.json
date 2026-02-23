@@ -1,0 +1,9 @@
+{
+  "name": "browser-qa",
+  "description": "AI-powered QA agent that uses Chrome browser tools to intelligently browse web applications, discover all screens and interactive elements, test them systematically, and automatically fix bugs it finds. Supports targeted workflow testing and bug fix cycles.",
+  "version": "1.0.0",
+  "author": {
+    "name": "NarAI Labs",
+    "url": "https://github.com/narailabs"
+  }
+}
