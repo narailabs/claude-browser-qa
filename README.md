@@ -30,7 +30,7 @@ No project-specific configuration needed — it works on any web app.
 Add the Narai marketplace to Claude Code, then install the plugin:
 
 ```
-/plugin marketplace add narailabs/narai-plugins
+/plugin marketplace add narailabs/narai-claude-plugins
 /plugin install browser-qa@narai
 ```
 
