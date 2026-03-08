@@ -234,13 +234,13 @@ Aggregate all results into:
 - List of fixes applied
 - List of blocked expectations
 
-Feed into Phase 7 report.
+Feed into Phase 8 report.
 
 ### Step 5: Handle Failures
 For expectations that FAIL (not FIXED):
 - Add to the bug registry with `bug_type: expectation_failure`
 - Include in the final report
-- These do NOT trigger Phase 5 auto-fix (the validation agent already attempted a fix)
+- These do NOT trigger Phase 6 auto-fix (the validation agent already attempted a fix)
 
 ## Integration with Modes
 

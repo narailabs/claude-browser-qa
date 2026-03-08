@@ -2,7 +2,7 @@
 name: browser-qa
 description: Use when testing a web app end-to-end via Chrome browser. Navigates all screens, discovers interactive elements, verifies functionality, checks console errors and network failures, finds bugs, and automatically launches fix agents inline. Also supports targeted workflow testing and bug fix cycles. Requires Claude in Chrome extension connected.
 disable-model-invocation: true
-argument-hint: "[url] [--mode smoke|functional|full] [--record] [--no-autofix] [--a11y] [--perf] [--responsive] [--skip-auth] [--workflow \"...\"] [--fix \"...\"]"
+argument-hint: "[url] [--mode smoke|functional|full] [--record] [--no-autofix] [--a11y] [--perf] [--responsive] [--skip-auth] [--focus \"#route\"] [--workflow \"...\"] [--fix \"...\"]"
 ---
 
 # Intelligent E2E Testing
@@ -115,10 +115,10 @@ Before opening the browser, understand the project so fix agents have context.
 
 Flag interactions:
 - `--workflow`/`--fix` imply `--mode functional`
-- `--a11y`/`--perf`: Run only on screens visited during workflow/fix
+- `--a11y`/`--perf` with `--workflow`/`--fix`: After the workflow/fix completes, run Layer 6/7 checks on the screens that were visited during execution
 - `--responsive`: Re-run workflow at each breakpoint, or verify fix at all breakpoints
 - `--no-autofix` + `--fix`: Contradictory — ask user to clarify
-- `--focus`: Ignored when `--workflow`/`--fix` is set
+- `--focus`: Limits broad testing (Phases 3-7) to the specified route only. Ignored when `--workflow`/`--fix` is set
 
 ## Phase 3: Discover
 
@@ -129,6 +129,8 @@ Map the app's testable surfaces:
 3. `read_page(filter=interactive)` — catalog buttons, inputs, selects per screen
 4. Build TodoWrite entry per screen: `"Screen: Tasks (#tasks) — 14 interactive elements"`
 5. Report: "Found N screens with M total interactive elements. Starting testing."
+
+**`--focus` filtering**: If `--focus` is set, limit discovery and all subsequent phases (4-7) to only the matching route/screen. Other screens are skipped and noted as "out of focus scope" in the report.
 
 ## Phase 4: Expectations-Based Validation
 
@@ -296,7 +298,8 @@ If `--record`: Stop GIF recording, export, and offer to the user.
 | Destructive buttons (delete, remove, reset) | Auth credentials | Navigation / reading pages |
 | External actions (send, publish, deploy) | Destructive action preference | Screenshots / console / network |
 | Real credentials (API keys, passwords) | | Filling forms with test data |
-| OAuth/SSO flows (user does manually) | | Spawning fix agents |
+| OAuth/SSO flows (user does manually) | | Clicking safe buttons (non-destructive, in-app) |
+| | | Spawning fix agents |
 | | | A11y / perf / responsive checks |
 | | | Retrying failed interactions |
 
