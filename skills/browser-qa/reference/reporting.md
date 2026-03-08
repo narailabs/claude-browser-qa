@@ -2,6 +2,7 @@
 
 ## Contents
 - [Broad Testing Report](#broad-testing-report)
+- [Expectations Validation Report](#expectations-validation-report)
 - [Bug Report Format](#bug-report-format)
 - [Accessibility Report](#accessibility-report)
 - [Performance Report](#performance-report)
@@ -12,7 +13,7 @@
 
 ## Broad Testing Report
 
-The Phase 7 report for broad testing (smoke, functional, full modes):
+The Phase 8 report for broad testing (smoke, functional, full modes):
 
 ```
 E2E Test Complete
@@ -23,7 +24,12 @@ Mode: smoke / functional / full
 Screens: 6/6 tested (100%)
 Elements: 45/52 exercised (87%)
 
-Bugs found: 5 unique (across 8 total occurrences)
+Expectations validated: 12/15
+  ✅ Pass: 10
+  🔧 Fixed: 1
+  ❌ Fail: 1
+
+Runtime bugs found: 5 unique (across 8 total occurrences)
   ✅ Fixed inline: 3
   ❌ Still open: 2
 
@@ -39,6 +45,36 @@ Security observations: 0
 Coverage gaps:
 - Settings: API key form skipped (no credentials)
 - Tasks: Delete button skipped (destructive, user declined)
+```
+
+## Expectations Validation Report
+
+```
+Expectations Validation
+═══════════════════════════════════
+Discovered: 15 expectations from codebase analysis
+Validated: 12 (high + medium priority)
+Skipped: 3 (low priority, smoke mode)
+
+EXP-001: Dashboard shows logged-in user's name ✅ PASS
+  Screen: /dashboard | Source: src/pages/Dashboard.tsx:12
+
+EXP-002: Task list displays all user tasks ✅ PASS
+  Screen: /tasks | Source: README.md "Features" section
+
+EXP-003: Settings page saves theme preference 🔧 FIXED
+  Screen: /settings | Source: src/pages/Settings.tsx:45
+  Issue: Theme preference saved but not applied on reload
+  Fix: Added theme initialization in App.tsx useEffect (src/App.tsx:18)
+
+EXP-004: Export button generates CSV download ❌ FAIL
+  Screen: /tasks | Source: README.md "Export data as CSV"
+  Issue: Export button exists but click triggers "Not implemented" console error
+  Fix attempted: Could not determine intended implementation from codebase
+
+EXP-005: /settings/billing route renders billing page ⚠️ BLOCKED
+  Screen: /settings/billing | Source: src/router.tsx:28
+  Issue: Route defined but navigating shows blank page (auth redirect loop)
 ```
 
 ## Bug Report Format
