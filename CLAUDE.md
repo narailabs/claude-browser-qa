@@ -14,11 +14,22 @@ claude-browser-qa/
 │   └── plugin.json              # Plugin manifest (name, version, author)
 ├── skills/
 │   └── browser-qa/
-│       └── SKILL.md             # The complete skill definition (plugin copy)
+│       ├── SKILL.md             # Main skill definition (plugin copy)
+│       └── reference/           # Detailed procedures loaded on demand
+│           ├── testing-layers.md       # Functional testing procedures
+│           ├── accessibility.md        # WCAG accessibility checks
+│           ├── performance.md          # Performance observation checks
+│           ├── responsive.md           # Viewport + dark mode testing
+│           ├── fix-agents.md           # Fix agent templates & guidelines
+│           ├── workflow-mode.md        # --workflow mode procedures
+│           ├── fix-mode.md             # --fix mode procedures
+│           ├── interaction-protocol.md # Wait-for-ready & retry logic
+│           └── reporting.md            # Report templates for all modes
 ├── .claude/
 │   └── skills/
-│       └── browser-qa/
-│           └── SKILL.md         # Local dev copy (kept in sync)
+│       └── browser-qa/          # Local dev copy (kept in sync with skills/)
+│           ├── SKILL.md
+│           └── reference/
 └── .github/
     └── workflows/
         └── claude.yml           # Claude Code GitHub Action
