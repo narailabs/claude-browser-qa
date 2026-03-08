@@ -2,12 +2,12 @@
 name: browser-qa
 description: Use when testing a web app end-to-end via Chrome browser. Navigates all screens, discovers interactive elements, verifies functionality, checks console errors and network failures, finds bugs, and automatically launches fix agents inline. Also supports targeted workflow testing and bug fix cycles. Requires Claude in Chrome extension connected.
 disable-model-invocation: true
-argument-hint: "[url] [--mode smoke|functional|full] [--record] [--no-autofix] [--a11y] [--perf] [--responsive] [--skip-auth] [--workflow \"...\"] [--fix \"...\"]"
+argument-hint: "[url] [--mode smoke|functional|full] [--record] [--no-autofix] [--a11y] [--perf] [--responsive] [--skip-auth] [--focus \"#route\"] [--workflow \"...\"] [--fix \"...\"]"
 ---
 
 # Intelligent E2E Testing
 
-Systematically explore and test a web application using Chrome MCP browser tools. Auto-discovers screens, interactive elements, and testable surfaces from the DOM — no project-specific configuration needed. **Automatically spawns fix agents for every bug found**, then re-tests to confirm the fix.
+Systematically explore and test a web application using Chrome MCP browser tools. Auto-discovers screens, interactive elements, and testable surfaces from the DOM — no project-specific configuration needed. **Automatically spawns fix agents for every bug found**, then re-tests to confirm the fix. Goes beyond runtime errors — analyzes docs and code to build expectations of how the app should behave, then validates each expectation with dedicated subagents that test and fix independently.
 
 **Arguments received**: $ARGUMENTS
 
@@ -109,16 +109,16 @@ Before opening the browser, understand the project so fix agents have context.
 
 ## Execution Mode Routing
 
-- **`--workflow` set** → [Workflow Mode](reference/workflow-mode.md). Skip Phases 3-4.
-- **`--fix` set** → [Fix Mode](reference/fix-mode.md). Skip Phases 3-4.
+- **`--workflow` set** → [Workflow Mode](reference/workflow-mode.md). Skip Phases 3-5.
+- **`--fix` set** → [Fix Mode](reference/fix-mode.md). Skip Phases 3-5.
 - **Otherwise** → Continue to Phase 3 (broad sweep testing).
 
 Flag interactions:
 - `--workflow`/`--fix` imply `--mode functional`
-- `--a11y`/`--perf`: Run only on screens visited during workflow/fix
+- `--a11y`/`--perf` with `--workflow`/`--fix`: After the workflow/fix completes, run Layer 6/7 checks on the screens that were visited during execution
 - `--responsive`: Re-run workflow at each breakpoint, or verify fix at all breakpoints
 - `--no-autofix` + `--fix`: Contradictory — ask user to clarify
-- `--focus`: Ignored when `--workflow`/`--fix` is set
+- `--focus`: Limits broad testing (Phases 3-7) to the specified route only. Ignored when `--workflow`/`--fix` is set
 
 ## Phase 3: Discover
 
@@ -130,7 +130,45 @@ Map the app's testable surfaces:
 4. Build TodoWrite entry per screen: `"Screen: Tasks (#tasks) — 14 interactive elements"`
 5. Report: "Found N screens with M total interactive elements. Starting testing."
 
-## Phase 4: Test Each Screen
+**`--focus` filtering**: If `--focus` is set, limit discovery and all subsequent phases (4-7) to only the matching route/screen. Other screens are skipped and noted as "out of focus scope" in the report.
+
+## Phase 4: Expectations-Based Validation
+
+Validate the app works as *intended* — not just that it doesn't crash. Uses subagents for clean context per validation. Full procedures in [expectations-validation.md](reference/expectations-validation.md).
+
+### Step 1: Discover Expectations
+Spawn a `general-purpose` subagent (no browser access) to analyze the codebase adaptively:
+- **Level 1** (always): Read README/docs → extract described features and capabilities
+- **Level 2** (always): Parse route config → list all expected screens
+- **Level 3** (if <10 expectations): Read key page components → extract expected UI elements
+- **Level 4** (targeted): Read API handlers only when needed for specific expectations
+
+The agent returns a JSON array of structured expectations — each with an ID, category, screen, verification steps, and success criteria.
+
+### Step 2: Filter by Mode
+- `smoke`: Only `high` priority expectations
+- `functional`: `high` + `medium` priority
+- `full`: All expectations
+
+### Step 3: Validate Each Expectation
+For each expectation, spawn a **separate** `general-purpose` subagent with clean context. Each validation agent:
+1. Connects to the browser (same tab, passed via tab ID)
+2. Navigates to the expectation's screen
+3. Follows the verification steps
+4. Checks success criteria
+5. **If FAIL**: Reads source code, diagnoses root cause, applies fix, re-validates
+6. Returns: PASS / FAIL / FIXED / BLOCKED with evidence
+
+Run sequentially (agents share the browser tab). Report progress: "Validating 3/15: Dashboard shows user count..."
+
+### Step 4: Collect Results
+- Aggregate pass/fail/fixed/blocked counts
+- Failed expectations (not fixed) → add to bug registry as `expectation_failure`
+- Feed all results into Phase 8 report
+
+`--no-autofix`: Validation agents report failures but skip fix attempts.
+
+## Phase 5: Test Each Screen
 
 For each screen, run verification layers. Follow the [Interaction Stability Protocol](reference/interaction-protocol.md) for all interactions.
 
@@ -214,9 +252,9 @@ BUG REGISTRY:
 - BUG-001: {key: "TypeError: Cannot read properties of undefined", type: console_error, severity: major, affected_screens: ["#tasks", "#agents"], first_seen: "#tasks"}
 ```
 
-## Phase 5: Auto-Fix Bugs
+## Phase 6: Auto-Fix Bugs
 
-**Runs immediately when any bug is confirmed** (unless `--no-autofix`).
+**Runs immediately when any bug is confirmed during Phase 5** (unless `--no-autofix`). Note: bugs found during Phase 4 (expectations validation) are already handled by the validation subagents — this phase covers runtime bugs from Phase 5.
 
 For each bug, follow the process in [fix-agents.md](reference/fix-agents.md):
 
@@ -226,7 +264,7 @@ For each bug, follow the process in [fix-agents.md](reference/fix-agents.md):
 4. **Mark result**: Bug → "Fixed" or "Fix Attempted, Still Broken"
 5. **Continue testing**: Resume where you left off
 
-## Phase 6: Responsive Testing
+## Phase 7: Responsive Testing
 
 Runs with `--responsive` or `--mode full`. Follow procedures in [responsive.md](reference/responsive.md).
 
@@ -238,11 +276,12 @@ For each: resize → navigate → screenshot → check for layout issues (overfl
 
 Responsive bugs trigger auto-fix. Restore desktop viewport after testing.
 
-## Phase 7: Report
+## Phase 8: Report
 
 Generate a comprehensive report per [reporting.md](reference/reporting.md):
 
 - **Coverage summary**: App type, auth, screens/elements tested, bug counts
+- **Expectations validation**: Pass/fail/fixed/blocked counts, detailed results per expectation
 - **Bug reports**: Each unique bug once with all affected screens, status, evidence, fix details
 - **Accessibility report** (if `--a11y`/`full`): Issues with WCAG references
 - **Performance observations** (if `--perf`/`full`): Advisory findings
@@ -259,20 +298,21 @@ If `--record`: Stop GIF recording, export, and offer to the user.
 | Destructive buttons (delete, remove, reset) | Auth credentials | Navigation / reading pages |
 | External actions (send, publish, deploy) | Destructive action preference | Screenshots / console / network |
 | Real credentials (API keys, passwords) | | Filling forms with test data |
-| OAuth/SSO flows (user does manually) | | Spawning fix agents |
+| OAuth/SSO flows (user does manually) | | Clicking safe buttons (non-destructive, in-app) |
+| | | Spawning fix agents |
 | | | A11y / perf / responsive checks |
 | | | Retrying failed interactions |
 
 ## Testing Modes
 
-**smoke** (default): Navigate each screen → DOM + console + network + screenshot. No interactions. Auto-fix. Deduplication active.
+**smoke** (default): Navigate each screen → DOM + console + network + screenshot. Expectations validation (high priority only). No interactions. Auto-fix. Deduplication active.
 
-**functional**: smoke + interact with safe elements, fill forms, click buttons, verify state. Form validation + navigation testing. Auto-fix. Stability protocol active.
+**functional**: smoke + interact with safe elements, fill forms, click buttons, verify state. Expectations validation (high + medium priority). Form validation + navigation testing. Auto-fix. Stability protocol active.
 
-**full**: functional + error state testing + state persistence + security spot checks + accessibility (Layer 6) + performance (Layer 7) + responsive (Phase 6) + dark mode. Auto-fix.
+**full**: functional + all expectations validated + error state testing + state persistence + security spot checks + accessibility (Layer 6) + performance (Layer 7) + responsive (Phase 7) + dark mode. Auto-fix.
 
-**workflow**: Test specific user journey via `--workflow`. See [workflow-mode.md](reference/workflow-mode.md). Parses description into steps, executes sequentially, fixes bugs, re-runs entire workflow after each fix (max 3 re-runs).
+**workflow**: Test specific user journey via `--workflow`. See [workflow-mode.md](reference/workflow-mode.md). Parses description into steps, executes sequentially, fixes bugs, re-runs entire workflow after each fix (max 3 re-runs). No expectations discovery (the workflow IS the expectation).
 
-**fix**: Reproduce and fix known bug via `--fix`. See [fix-mode.md](reference/fix-mode.md). Structured cycle: understand → reproduce → evidence → fix (up to 2 attempts) → validate → regression check.
+**fix**: Reproduce and fix known bug via `--fix`. See [fix-mode.md](reference/fix-mode.md). Structured cycle: understand → reproduce → evidence → fix (up to 2 attempts) → validate → regression check. No expectations discovery (the bug IS the expectation).
 
 Individual layers can also be enabled via flags: `--a11y`, `--perf`, `--responsive`.
