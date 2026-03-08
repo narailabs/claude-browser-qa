@@ -11,6 +11,8 @@ Reproduce a known bug, fix it, and validate the fix. Structured cycle: understan
 - [F.6: Regression Check](#f6-regression-check)
 - [F.7: Report](#f7-report)
 
+**Note**: `--no-autofix` + `--fix` is contradictory (fix mode exists to fix bugs). If both are set, the main agent should have already asked the user to clarify. If this agent runs, fixing is enabled.
+
 ## F.1: Understand the Bug
 
 Parse the `--fix` description to extract:
