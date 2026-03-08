@@ -36,13 +36,14 @@ When detected: wait and re-check. Do NOT interact with skeleton-showing elements
 
 ## Click Retry Sequence
 
-4 attempts max, escalating:
+4 attempts max, escalating. If all fail, log the failure:
 
 1. **Retry by ref**: Click using element ref → wait 2s → try once more
 2. **Retry after wait**: `wait(3s)` → retry (element may still be loading)
 3. **Retry by find**: Re-locate via `find(query="[button text]")` → click new ref
 4. **Retry by coordinate**: Screenshot → visually locate → `click(coordinate=[x, y])`
-5. **Log failure**: "Element '[name]' not interactable on [screen]" + screenshot
+
+If all 4 attempts fail → log: "Element '[name]' not interactable on [screen]" + screenshot
 
 ## Type/Input Retry Sequence
 
