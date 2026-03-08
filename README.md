@@ -5,10 +5,13 @@ AI-powered QA agent for Claude Code. Intelligently browses your web app, discove
 ## What It Does
 
 - **Auto-discovers** all navigation routes, forms, buttons, and interactive elements from the DOM
-- **Tests systematically** with multiple depth modes: smoke, functional, and full
+- **CRUD lifecycle testing**: Creates items, verifies them, edits, deletes — full data interaction
+- **Action verification**: Every button click verified with pre/post state comparison
+- **Permutation testing**: Tests all dropdown options, toggle states, form variations, tabs, and flow branches
+- **Expectations validation**: Analyzes docs and code to build expectations, then validates each with dedicated subagents
 - **Verifies everything**: DOM content, console errors, network failures, visual rendering, accessibility, performance
 - **Fixes bugs inline** by spawning fix agents when issues are found, then re-tests to confirm
-- **Tracks coverage**: reports screens tested, elements exercised, and gaps
+- **Coverage tracking**: 4-dimension coverage (elements, CRUD, actions, permutations) targeting ≥90%
 - **Targeted workflow testing**: test a specific user journey end-to-end with `--workflow`
 - **Bug fix cycles**: reproduce a known bug, fix it, and validate with `--fix`
 - **Records GIF** of the test session (optional)
@@ -48,26 +51,24 @@ Copy the skill file into your project's `.claude/skills/` directory:
 
 ```bash
 # From your project root
-mkdir -p .claude/skills/browser-qa
+mkdir -p .claude/skills/browser-qa/reference
 curl -o .claude/skills/browser-qa/SKILL.md \
   https://raw.githubusercontent.com/narailabs/claude-browser-qa/main/skills/browser-qa/SKILL.md
+# Also download reference files for full functionality
+for f in testing-layers accessibility performance responsive fix-agents expectations-validation workflow-mode fix-mode interaction-protocol reporting; do
+  curl -o .claude/skills/browser-qa/reference/$f.md \
+    https://raw.githubusercontent.com/narailabs/claude-browser-qa/main/skills/browser-qa/reference/$f.md
+done
 ```
 
-Or clone and copy:
-
-```bash
-git clone https://github.com/narailabs/claude-browser-qa.git /tmp/browser-qa
-cp -r /tmp/browser-qa/skills/browser-qa .claude/skills/
-```
-
-> **Manual install note:** With this method you won't get automatic updates. Re-run the curl/copy command to update.
+> **Manual install note:** With this method you won't get automatic updates. Re-run the commands to update.
 
 ## Usage
 
 ```
-# Broad testing
+# Broad testing (prompts for mode selection — Full recommended)
 /browser-qa http://localhost:3000
-/browser-qa http://localhost:5173 --mode functional
+/browser-qa http://localhost:5173 --mode full
 /browser-qa http://localhost:8080 --mode full --record
 /browser-qa http://localhost:3000 --focus "#settings"
 
@@ -84,11 +85,13 @@ cp -r /tmp/browser-qa/skills/browser-qa .claude/skills/
 
 | Mode | What It Does |
 |------|-------------|
-| **smoke** (default) | Navigate each screen, verify DOM + console + network, take screenshots |
-| **functional** | Smoke + interact with forms, click buttons, verify state changes |
-| **full** | Functional + edge cases + accessibility + performance + responsive testing |
+| **full** (default) | CRUD lifecycle + action verification + permutations + expectations validation + a11y + perf + responsive + dark mode. Targets ≥90% coverage. |
+| **functional** | CRUD lifecycle + action verification + form validation + navigation testing. No permutations or a11y/perf/responsive. |
+| **smoke** | Navigate each screen, verify DOM + console + network, take screenshots. No interactions. |
 | **workflow** | Test a specific user journey (via `--workflow`), fix bugs, re-run to verify |
 | **fix** | Reproduce and fix a known bug (via `--fix`), validate, regression check |
+
+If `--mode` is not explicitly set, the skill prompts you to choose (Full is recommended).
 
 ### Options
 
@@ -108,12 +111,14 @@ cp -r /tmp/browser-qa/skills/browser-qa .claude/skills/
 ## How It Works
 
 **Broad testing** (default — no `--workflow` or `--fix`):
-1. **Phase 0 — Codebase Recon**: Reads your `CLAUDE.md` and explores the project structure
-2. **Phase 1 — Setup**: Opens Chrome, navigates to your app, detects auth and SPA/MPA routing
-3. **Phase 2 — Discover**: Maps all screens, navigation links, and interactive elements from the DOM
-4. **Phase 3 — Test**: For each screen, runs verification layers (DOM, console, network, visual, functional, accessibility, performance)
-5. **Phase 3.5 — Auto-Fix**: When a bug is found, spawns a fix agent with full context, then re-tests to verify
-6. **Phase 4 — Report**: Coverage summary, bug reports with screenshots and reproduction steps
+1. **Phase 1 — Codebase Recon**: Reads your docs and explores the project structure
+2. **Phase 2 — Setup**: Opens Chrome, navigates to your app, detects auth and SPA/MPA routing
+3. **Phase 3 — Discover**: Maps all screens, navigation links, and interactive elements
+4. **Phase 4 — Expectations Validation**: Analyzes code/docs to build expectations, validates each with dedicated subagents that test and auto-fix
+5. **Phase 5 — Test**: CRUD lifecycle, action verification, form validation, permutations, a11y, performance
+6. **Phase 6 — Auto-Fix**: Spawns fix agents for runtime bugs, re-tests to verify
+7. **Phase 7 — Responsive**: Tests at 4 breakpoints + dark mode
+8. **Phase 8 — Report**: Coverage summary, CRUD results, bug reports, expectations results
 
 **Workflow testing** (`--workflow "..."`):
 1. Parses your workflow description into concrete steps
@@ -133,10 +138,16 @@ cp -r /tmp/browser-qa/skills/browser-qa .claude/skills/
 E2E Test Complete
 ═══════════════════════════════════
 Screens: 6/6 tested (100%)
-Elements: 45/52 exercised (87%)
-Bugs found: 3
+
+Functional Coverage: 92%
+  Element: 45/52 (87%) | CRUD: 4/4 (100%) | Actions: 18/20 (90%) | Permutations: 28/35 (80%)
+
+Expectations validated: 12/15
+  ✅ Pass: 10 | 🔧 Fixed: 1 | ❌ Fail: 1
+
+Runtime bugs found: 3
   ✅ Fixed inline: 2
-  ❌ Still open: 1 (fix failed)
+  ❌ Still open: 1
 
 Coverage gaps:
 - Settings: API key form skipped (no credentials)
