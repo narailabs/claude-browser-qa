@@ -2,6 +2,7 @@
 
 ## Contents
 - [Broad Testing Report](#broad-testing-report)
+- [CRUD Test Results](#crud-test-results)
 - [Expectations Validation Report](#expectations-validation-report)
 - [Bug Report Format](#bug-report-format)
 - [Accessibility Report](#accessibility-report)
@@ -22,7 +23,9 @@ App type: SPA / MPA
 Auth: Logged in as [user] / No auth / Skipped
 Mode: smoke / functional / full
 Screens: 6/6 tested (100%)
-Elements: 45/52 exercised (87%)
+
+Functional Coverage: 92%
+  Element: 45/52 (87%) | CRUD: 4/4 entities (100%) | Actions: 18/20 (90%) | Permutations: 28/35 (80%)
 
 Expectations validated: 12/15
   ✅ Pass: 10
@@ -45,6 +48,37 @@ Security observations: 0
 Coverage gaps:
 - Settings: API key form skipped (no credentials)
 - Tasks: Delete button skipped (destructive, user declined)
+- Admin panel: requires admin role — not tested
+
+Test data created:
+  - Task: "QA Updated Task 1741234567" (delete declined)
+  - Project: "QA Test Project 1741234567" (deleted ✅)
+```
+
+## CRUD Test Results
+
+For each data entity discovered, report the CRUD lifecycle result:
+
+```
+CRUD Test Results
+═══════════════════════════════════
+Tasks (CRUD ✅):
+  Create: ✅ Created "QA Test Task 1741234567"
+  Read:   ✅ Detail view shows all fields correctly
+  Update: ✅ Renamed to "QA Updated Task", change persisted
+  Delete: ✅ Deleted, removed from list (user approved)
+
+Projects (CRUD ⚠️ partial):
+  Create: ✅ Created "QA Test Project"
+  Read:   ✅ Detail view correct
+  Update: ❌ BUG — Edit button opens blank modal (BUG-003)
+  Delete: ⏭️ Skipped (user declined)
+
+Users (CRUD ⚠️ partial):
+  Create: ⏭️ Skipped (requires admin role)
+  Read:   ✅ User list displays correctly
+  Update: ⏭️ Skipped (requires admin role)
+  Delete: ⏭️ Skipped (requires admin role)
 ```
 
 ## Expectations Validation Report

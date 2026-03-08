@@ -13,7 +13,7 @@ Systematically explore and test a web application using Chrome MCP browser tools
 
 Parse the arguments:
 - First positional argument = URL to test (e.g., `http://localhost:5173`)
-- `--mode smoke|functional|full` = testing depth (default: `smoke`)
+- `--mode smoke|functional|full` = testing depth (default: `full`)
 - `--record` = enable GIF recording of test session
 - `--focus "#route"` = test only a specific route/area
 - `--no-autofix` = skip auto-fixing bugs, just report them
@@ -26,6 +26,23 @@ Parse the arguments:
 
 `--workflow` and `--fix` are mutually exclusive. If both provided, ask which was intended.
 If no URL provided, ask the user.
+
+**Mode selection**: If `--mode` is NOT explicitly set and neither `--workflow` nor `--fix` is used, ask the user to pick a mode before starting:
+
+```
+AskUserQuestion:
+  question: "Which testing mode should I use?"
+  header: "Test mode"
+  options:
+    - label: "Full (Recommended)"
+      description: "CRUD lifecycle, action verification, permutations, a11y, perf, responsive, dark mode. Targets ≥90% coverage."
+    - label: "Functional"
+      description: "CRUD lifecycle, action verification, form validation, navigation testing. No permutations or a11y/perf/responsive."
+    - label: "Smoke"
+      description: "Navigate and observe only — no interactions. Quick pass for DOM, console, and network errors."
+```
+
+Map the answer to the mode and proceed. If the user picks "Other", use their custom input as the mode or clarify.
 
 **Example invocations:**
 ```
@@ -193,9 +210,11 @@ For each screen, run verification layers. Follow the [Interaction Stability Prot
 ### Layer 5: Functional Testing (`functional`/`full` mode)
 
 For each interactive element, follow the detailed procedures in [testing-layers.md](reference/testing-layers.md):
+- **CRUD lifecycle**: For each data entity — create item → verify → edit → verify → delete (ask first) → verify
 - **Forms**: Fill with test data → submit → verify state changed
+- **Actions**: Click → capture pre/post state → verify outcome changed → verify reversibility
 - **Buttons**: Classify (safe/destructive/external) → click safe ones, ask about destructive/external
-- **Search/Filter**: Type query → verify results update
+- **Search/Filter**: Type query → verify results update → clear → verify reset
 - After each interaction: check console, network, screenshot if changed
 
 New in `functional`/`full` mode:
@@ -203,6 +222,7 @@ New in `functional`/`full` mode:
 - **Navigation testing**: Back/forward, deep linking, page refresh
 
 New in `full` mode only:
+- **Permutation testing**: Test all select options, toggle states, form input variations, tab views, flow branches
 - **Error state testing**: Simulate network failures, check error boundaries
 - **State persistence testing**: localStorage/sessionStorage after reload
 - **Security spot checks**: Sensitive data in storage, HTTP forms, mixed content
@@ -305,11 +325,11 @@ If `--record`: Stop GIF recording, export, and offer to the user.
 
 ## Testing Modes
 
-**smoke** (default): Navigate each screen → DOM + console + network + screenshot. Expectations validation (high priority only). No interactions. Auto-fix. Deduplication active.
+**smoke**: Navigate each screen → DOM + console + network + screenshot. Expectations validation (high priority only). No interactions. Auto-fix. Deduplication active. Coverage target: element coverage only.
 
-**functional**: smoke + interact with safe elements, fill forms, click buttons, verify state. Expectations validation (high + medium priority). Form validation + navigation testing. Auto-fix. Stability protocol active.
+**functional**: smoke + interact with safe elements, fill forms, click buttons, verify state. CRUD lifecycle for all data entities. Action verification with pre/post state comparison. Expectations validation (high + medium priority). Form validation + navigation testing. Auto-fix. Stability protocol active. Coverage target: ≥90% element + action coverage, 100% CRUD coverage.
 
-**full**: functional + all expectations validated + error state testing + state persistence + security spot checks + accessibility (Layer 6) + performance (Layer 7) + responsive (Phase 7) + dark mode. Auto-fix.
+**full** (default): functional + all expectations validated + permutation testing (all select options, toggle states, form variations, tab views, flow branches) + error state testing + state persistence + security spot checks + accessibility (Layer 6) + performance (Layer 7) + responsive (Phase 7) + dark mode. Auto-fix. Coverage target: ≥90% all dimensions, ≥80% permutation coverage.
 
 **workflow**: Test specific user journey via `--workflow`. See [workflow-mode.md](reference/workflow-mode.md). Parses description into steps, executes sequentially, fixes bugs, re-runs entire workflow after each fix (max 3 re-runs). No expectations discovery (the workflow IS the expectation).
 
