@@ -21,6 +21,7 @@ claude-browser-qa/
 │           ├── performance.md          # Performance observation checks
 │           ├── responsive.md           # Viewport + dark mode testing
 │           ├── fix-agents.md           # Fix agent templates & guidelines
+│           ├── expectations-validation.md # Code/docs-driven expectations testing
 │           ├── workflow-mode.md        # --workflow mode procedures
 │           ├── fix-mode.md             # --fix mode procedures
 │           ├── interaction-protocol.md # Wait-for-ready & retry logic
