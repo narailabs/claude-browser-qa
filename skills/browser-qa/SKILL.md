@@ -336,3 +336,73 @@ If `--record`: Stop GIF recording, export, and offer to the user.
 **fix**: Reproduce and fix known bug via `--fix`. See [fix-mode.md](reference/fix-mode.md). Structured cycle: understand → reproduce → evidence → fix (up to 2 attempts) → validate → regression check. No expectations discovery (the bug IS the expectation).
 
 Individual layers can also be enabled via flags: `--a11y`, `--perf`, `--responsive`.
+
+---
+
+## Feedback Loop — Self-Improvement Protocol
+
+> This skill improves itself over time. The following protocol runs automatically.
+
+### @BOOT — Load Learned Context
+
+At the start of every run:
+
+1. Read `feedback/patterns.md` — apply all listed patterns as constraints on this run.
+2. Read the last 5 entries of `feedback/run-log.jsonl` — note recent corrections to avoid repeating them.
+3. Pay special attention to patterns about: element interaction timing (wait durations, retry strategies), false-positive bug classification (benign console warnings vs real errors, expected 404s vs broken endpoints), expectations discovery accuracy (over/under-generating expectations from codebase analysis), fix agent prompt effectiveness, and subagent coordination (tab sharing, context passing).
+
+Do not mention the feedback loop to the user unless asked. Apply patterns silently.
+
+### @REVIEW — Self-Assess After Completion
+
+After completing the user's task (before saying "done"):
+
+1. **Corrections check**: Did the user correct, redirect, or redo anything during this run? List each correction.
+2. **Approach diff**: Compare initial approach to final output. What changed and why?
+3. **Friction points**: Where did the process feel clumsy, slow, or uncertain?
+4. **Domain-specific review**:
+   - Did element interaction timing cause false failures (clicking too early, not waiting long enough)?
+   - Were any console errors or network failures misclassified as bugs (false positives) or missed (false negatives)?
+   - Did expectations discovery generate accurate, testable expectations — or were there too many false/trivial/untestable ones?
+   - Did fix agent prompts produce effective fixes on the first attempt, or did they need retries?
+   - Did validation subagents have sufficient context, or did they fail due to missing codebase info?
+   - Was bug deduplication accurate, or were duplicates reported or distinct bugs merged?
+
+Produce a structured internal review (not shown to user yet).
+
+### @EVOLVE — Propose Improvements (User-Gated)
+
+After @REVIEW, present findings to the user:
+
+> "I completed the task. Before wrapping up, I noticed some patterns that could improve how I handle browser QA testing in the future. Here's what I'd like to update:"
+
+For EACH proposed change, present:
+
+| Field | Content |
+|-------|---------|
+| **What** | The exact text to add/modify in `feedback/patterns.md` |
+| **Why** | What triggered this — user correction, self-review finding, or repeated pattern |
+| **Impact** | How this makes future runs better |
+
+Then ask:
+> "Would you like me to apply any of these? You can approve, modify, or reject each one."
+
+**Rules:**
+- NEVER write to `feedback/patterns.md` without user approval
+- NEVER modify SKILL.md content above the Feedback Loop section
+- NEVER change the skill's name, description, or core purpose
+- Append approved patterns to the appropriate section in `feedback/patterns.md`
+- Log the full run summary to `feedback/run-log.jsonl`
+- If a proposed change would alter what the skill DOES (vs how it does it), flag it: "⚠️ This change may affect scope — proceed?"
+
+### Scope Guard
+
+The feedback loop may ONLY modify:
+- `feedback/patterns.md` — learned behavioral patterns
+- `feedback/run-log.jsonl` — run history
+
+It may NEVER modify:
+- SKILL.md frontmatter (name, description)
+- SKILL.md sections above the Feedback Loop section
+- Any files in reference/ or assets/
+- The skill's core purpose or scope
