@@ -49,6 +49,16 @@ This repo is structured as a **Claude Code plugin** distributed via the **Narai 
 - **Manual install**: Users can also copy `skills/browser-qa/SKILL.md` into their project's `.claude/skills/browser-qa/` directory.
 - **Local dev**: The `.claude/skills/` copy lets you test the skill locally in this repo. Keep it in sync with `skills/browser-qa/SKILL.md`.
 
+### Versioning
+
+When bumping the plugin version in `.claude-plugin/plugin.json`, you **must also update** the marketplace repo:
+
+1. Bump `version` in this repo's `.claude-plugin/plugin.json`
+2. In `narailabs/narai-claude-plugins`, update both:
+   - The `browser-qa` plugin entry's `version` field to match
+   - The marketplace `metadata.version` (bump the minor version)
+3. Commit and push both repos
+
 ## Prerequisites
 
 This skill requires the **Claude in Chrome** browser extension. The skill checks for it at startup and will block execution with setup instructions if it's not connected.
